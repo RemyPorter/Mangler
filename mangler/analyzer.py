@@ -73,13 +73,6 @@ ops = [swap, swap, swap, swap,swap,
         rotate, rotate, rotate
     ]
 
-
-def fft(channels):
-    return np.fft.fft2(channels)
-
-def ifft(data):
-    return np.fft.ifft2(data)
-
 def hit(data, length, block_size):
     coin = random.randint(0,1)
     chan = data[coin]
@@ -94,14 +87,10 @@ def _clean(channel):
     return map(lambda x: int(x.real), channel)
 
 def mangle(channels, block_size=50, num_hits=1000, dtype=np.int16):
-    print("About to FFT")
     data = channels
-    print("FFT complete")
     maxx = len(data[0]) - block_size
     for i in range(num_hits):
-        print "Hitting..." + str(i)
         data = hit(data, maxx, block_size)
-    print "Done hitting..."
     new_channels = data
     return np.array(new_channels, dtype=dtype)
 
