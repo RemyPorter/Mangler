@@ -44,7 +44,6 @@ def stutter(chan, start, end, block_size):
     cut_up = block_size / 4
     cut_s, cut_e = get_range(start, cut_up)
     cut = list(chan[cut_s:cut_e])
-    print len(cut*4)
     chan[start:end] = cut*4
     return chan
 
