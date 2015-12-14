@@ -77,19 +77,19 @@ reverseBlurReverse = combine(flip, bl, flip)
 dupFlip = combine(dup, flip)
 
 coreOps = {
-    swap: (5, 0),
-    flip: (5, 0),
+    swap: (10, 0),
+    flip: (10, 0),
     dup: (6, 0),
-    stutter: (2, 0),
-    e1: (2, 1),
-    e2: (2, 1),
+    stutter: (6, 0),
+    e1: (1, 1),
+    e2: (1, 1),
     e3: (1, 1),
     bl: (5, 1),
     sf: (4, 1),
     r: (1, 1),
     stutterAndFlip: (2, 0),
     reverseBlurReverse: (1, 0),
-    dupFlip: (3, 0),
+    dupFlip: (5, 0),
     rotate: (3, 0),
     frame_smear: (4, 0)
 }
