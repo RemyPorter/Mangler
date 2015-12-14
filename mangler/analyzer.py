@@ -48,6 +48,19 @@ def stutter(chan, start, end, block_size):
     chan[start:end] = cut*4
     return chan
 
+def frame_smear(chan, start, end, block_size):
+    segment = chan[start:end]
+    count = 0
+    res = []
+    for s in segment:
+        if count % 4 == 0:
+            res.append(s)
+        else:
+            res.append(res[-1])
+        count += 1
+    chan[start:end] = res
+    return chan
+
 blur = [0.04] * int(1.0/0.04)
 soft = [0.005] * int(1.0/0.005)
 ramp = [1,1,1,1,1,0,0,0,0,-1,-1,-1,-1,-1]
@@ -77,7 +90,8 @@ coreOps = {
     stutterAndFlip: (2, 0),
     reverseBlurReverse: (1, 0),
     dupFlip: (3, 0),
-    rotate: (3, 0)
+    rotate: (3, 0),
+    frame_smear: (4, 0)
 }
 
 def fftwrap(func):
