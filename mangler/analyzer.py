@@ -2,6 +2,7 @@ import numpy as np
 import random
 from scipy import ndimage
 from functools import partial
+from numpy.fft import fft, ifft
 
 def combine(*args):
     def f(chan, start, end, block_size=None):
@@ -53,6 +54,7 @@ ramp = [1,1,1,1,1,0,0,0,0,-1,-1,-1,-1,-1]
 
 e1 = partial(convolve, kernel=[-1, 2, -1])
 e2 = partial(convolve, kernel=[-1, -1, 4, -1, -1])
+e3 = partial(convolve, kernel=[-1, 4, -3])
 bl = partial(convolve, kernel=blur)
 sf = partial(convolve, kernel=soft)
 r = partial(convolve, kernel=ramp)
@@ -61,17 +63,39 @@ stutterAndFlip = combine(stutter, flip)
 reverseBlurReverse = combine(flip, bl, flip)
 dupFlip = combine(dup, flip)
 
-ops = [swap, swap, swap, swap,swap,
-        flip, flip, flip, flip,
-        dup, dup, dup, dup, dup,
-        stutter, stutter, stutter,
-        e1, e2, bl, sf, r,
-        e1, e2, bl, sf,
-        stutterAndFlip, stutterAndFlip,
-        reverseBlurReverse, reverseBlurReverse,
-        dupFlip, dupFlip,
-        rotate, rotate, rotate
-    ]
+coreOps = {
+    swap: (5, 0),
+    flip: (5, 0),
+    dup: (6, 0),
+    stutter: (2, 0),
+    e1: (2, 1),
+    e2: (2, 1),
+    e3: (1, 1),
+    bl: (5, 1),
+    sf: (4, 1),
+    r: (1, 1),
+    stutterAndFlip: (2, 0),
+    reverseBlurReverse: (1, 0),
+    dupFlip: (3, 0),
+    rotate: (3, 0)
+}
+
+def fftwrap(func):
+    def wrapped(chan, start, end, block_size):
+        f = fft(chan)
+        res = func(f, start, end, block_size)
+        return clean(ifft(res))
+    return wrapped
+
+def get_ops(coreOps):
+    res = []
+    for f in coreOps.keys():
+        res += [f]*coreOps[f][0]
+        res += [f]*coreOps[f][1]
+    return res
+
+ops = get_ops(coreOps)
+
 
 def hit(data, length, block_size):
     coin = random.randint(0,1)
