@@ -3,8 +3,9 @@ import random
 from scipy import ndimage
 from functools import partial
 from numpy.fft import fft, ifft
+from math import atan2, sin, cos, hypot, pi
 
-def combine(*args):
+def compose(*args):
     def f(chan, start, end, block_size=None):
         res = chan
         for a in args:
@@ -16,7 +17,17 @@ def get_range(size, block_size):
     s = random.randint(0,size-block_size-1)
     return s, s+block_size
 
-def rotate(chan, start, end, block_size=None):
+def rotate(chan, start, end, block_size):
+    amt = random.random() * 2
+    def rt(cpx, amount_in_radians=amt):
+        angle = atan2(cpx.real, cpx.imag) + amount_in_radians
+        r = hypot(cpx.real, cpx.imag)
+        return complex(r * cos(angle), r * sin(angle))
+    mapped = map(rt, fft(chan[start:end]))
+    chan[start:end] = _clean(ifft(mapped))
+    return chan
+
+def invert(chan, start, end, block_size=None):
     chan[start:end] = map(
         lambda x: -1 * x, chan[start:end])
     return chan
@@ -72,9 +83,9 @@ bl = partial(convolve, kernel=blur)
 sf = partial(convolve, kernel=soft)
 r = partial(convolve, kernel=ramp)
 
-stutterAndFlip = combine(stutter, flip)
-reverseBlurReverse = combine(flip, bl, flip)
-dupFlip = combine(dup, flip)
+stutterAndFlip = compose(stutter, flip)
+reverseBlurReverse = compose(flip, bl, flip)
+dupFlip = compose(dup, flip)
 
 coreOps = {
     swap: (10, 0),
@@ -86,12 +97,12 @@ coreOps = {
     e3: (1, 1),
     bl: (5, 1),
     sf: (4, 1),
-    r: (1, 1),
     stutterAndFlip: (2, 0),
     reverseBlurReverse: (1, 0),
     dupFlip: (5, 0),
-    rotate: (3, 0),
-    frame_smear: (4, 0)
+    invert: (3, 0),
+    frame_smear: (4, 0),
+    rotate: (8, 0)
 }
 
 def fftwrap(func):
@@ -112,7 +123,7 @@ ops = get_ops(coreOps)
 
 
 def hit(data, length, block_size):
-    coin = random.randint(0,1)
+    coin = random.randint(0,len(data)-1)
     chan = data[coin]
     start,end = get_range(len(chan), block_size)
     op = random.choice(ops)
@@ -124,7 +135,7 @@ def hit(data, length, block_size):
 def _clean(channel):
     return map(lambda x: int(x.real), channel)
 
-def mangle(channels, block_size=50, num_hits=1000, dtype=np.int16):
+def mangle(channels, block_size=50, num_hits=1000, dtype=np.int16, ops=None):
     data = channels
     maxx = len(data[0]) - block_size
     for i in range(num_hits):
