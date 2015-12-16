@@ -7,6 +7,12 @@ they desire."""
 
 import random
 from numpy.fft import fft, ifft, fft2, ifft2
+from scipy.ndimage import convolve
+from math import atan2, pi, hypot, cos, sin
+
+def _clean(channel):
+    """Map a list of complex numbers to their real components."""
+    return map(lambda x: int(x.real), channel)
 
 class BaseOperation(object):
     """A base class which represents a chain of operations.
@@ -166,6 +172,52 @@ class Dup(TwoPointOp):
 class StereoDup(Dup):
     """Duplicate a source over a destination on both channels."""
     __metaclass__ = Stereo
+
+class Convolution(OnePointOp):
+    """Perform a convolution on a single channel of the stream,
+    through the slice 's'.
+
+    >>> s = Convolution(slice(0,50), [-1, 2, 0])
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:10]
+    [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+    """
+    def __init__(self, s, kernel, channel=0):
+        OnePointOp.__init__(self, s, channel)
+        self.kernel = kernel
+
+    def munge(self, stream):
+        s = self.slice
+        stream[s] = convolve(stream[s], self.kernel)
+
+class Rotate(OnePointOp):
+    """Perform an FFT on a single channel, rotate all
+    of those points through the complex plane by some deflection angle,
+    and then convert back into the original data.
+
+    Deflection is in radians.
+
+    >>> s = Rotate(slice(0,10), 3*pi/2)
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:12]
+    [0, 8, 8, 7, 5, 5, 4, 3, 1, 0, 10, 11]
+    """
+    def __init__(self, s, deflection, channel=0):
+        OnePointOp.__init__(self, s, channel)
+        self.deflection = deflection
+
+    def munge(self, stream):
+        s = self.slice
+        f = fft(stream[s])
+        defl = self.deflection
+        def rotate(cpx, defl=defl):
+            angle = atan2(cpx.real, cpx.imag) + defl
+            r = hypot(cpx.real, cpx.imag)
+            return complex(r * cos(angle), r * sin(angle))
+        f = map(rotate, f)
+        stream[s] = _clean(ifft(f))
 
 if __name__ == '__main__':
     def test_data():
