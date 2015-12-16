@@ -241,6 +241,28 @@ class Stutter(OnePointOp):
         cut = full[0:size] * self.stutters
         stream[s] = cut[0:len(full)]
 
+class FrameSmear(OnePointOp):
+    """Take a slice `s` and replace each frame
+    with a rolling average of the frames seen so far.
+
+    >>> s = FrameSmear(slice(0,4))
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:4]
+    [0, 0, 1, 1]
+    """
+    def __init__(self, s, channel=0):
+        OnePointOp.__init__(self, s, channel)
+
+    def munge(self, stream):
+        total,count = 0,0
+        sl = stream[self.slice]
+        for i,v in enumerate(sl):
+            total += v
+            count += 1
+            sl[i] = total / count
+        stream[self.slice] = sl
+
 
 
 if __name__ == '__main__':
