@@ -263,7 +263,13 @@ class FrameSmear(OnePointOp):
             sl[i] = total / count
         stream[self.slice] = sl
 
-
+kernels = {
+    "blur": [0.04 * (int(1.0/0.04))],
+    "sharpen": [-3, 7, -3],
+    "edge": [-1, 2, -1],
+    "edge1": [-1, -1, 4, -1, -1],
+    "neighborhood": [1, 1, -4, 1, 1]
+}
 
 if __name__ == '__main__':
     def test_data():
