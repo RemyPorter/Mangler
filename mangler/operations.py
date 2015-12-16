@@ -219,6 +219,30 @@ class Rotate(OnePointOp):
         f = map(rotate, f)
         stream[s] = _clean(ifft(f))
 
+class Stutter(OnePointOp):
+    """Take a slice 's', extract a fragment of that slice,
+        and repeat that fragment for a `cuts` number of times
+        out to the length of the original slice.
+
+        >>> s = Stutter(slice(0,4), 4)
+        >>> data = test_data()
+        >>> s(data)
+        >>> data[0][0:4]
+        [0, 0, 0, 0]
+    """
+    def __init__(self, s, cuts, channel=0):
+        OnePointOp.__init__(self, s, channel)
+        self.stutters = cuts
+
+    def munge(self, stream):
+        s = self.slice
+        full = stream[s]
+        size = len(full) / self.stutters
+        cut = full[0:size] * self.stutters
+        stream[s] = cut[0:len(full)]
+
+
+
 if __name__ == '__main__':
     def test_data():
         return [list(range(100)), list(range(100))]
