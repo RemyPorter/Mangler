@@ -3,12 +3,40 @@ which can be performed against an array of samples. These
 samples could theoretically be anything, but the core purpose
 is audio data. All of these operations support multi-channel
 audio as their core input, but may only operate on one channel, if
-they desire."""
+they desire.
+
+All of these have the generated decorator applied, which injects a
+generate method into each class definition, which creates a
+randomized instance.
+
+>>> s = Swap.generate(1, 100)
+>>> isinstance(s.a, slice)
+True
+"""
 
 import random
 from numpy.fft import fft, ifft, fft2, ifft2
 from scipy.ndimage import convolve
 from math import atan2, pi, hypot, cos, sin
+from functools import partial
+from .randomizers import *
+
+kernels = {
+    "blur": [0.04 * (int(1.0/0.04))],
+    "sharpen": [-3, 7, -3],
+    "edge": [-1, 2, -1],
+    "edge1": [-1, -1, 4, -1, -1],
+    "neighborhood": [1, 1, -4, 1, 1]
+}
+
+class Stereo(type):
+    def __init__(cls, name, bases, nmspc):
+        orig = cls.__init__
+        def innernit(self, *args):
+            orig(self, *args)
+            for b in bases:
+                self &= b(*args, channel=1)
+        cls.__init__ = innernit
 
 def _clean(channel):
     """Map a list of complex numbers to their real components."""
@@ -68,15 +96,6 @@ class TwoPointOp(BaseOperation):
         self.a = a
         self.b = b
 
-class Stereo(type):
-    def __init__(cls, name, bases, nmspc):
-        orig = cls.__init__
-        def innernit(self, *args):
-            orig(self, *args)
-            for b in bases:
-                self &= b(*args, channel=1)
-        cls.__init__ = innernit
-
 class Swap(TwoPointOp):
     """This swap operation grabs two segments on a single channel
     and swaps them.
@@ -96,6 +115,7 @@ class Swap(TwoPointOp):
         s1 = stream[a]
         stream[a] = stream[b]
         stream[b] = s1
+generated(2, pick_channel)(Swap)
 
 class StereoSwap(Swap):
     """This swaps stereo channels by using two Swaps.
@@ -108,10 +128,7 @@ class StereoSwap(Swap):
     [4, 5, 6, 7, 0, 1, 2, 3, 8]
     """
     __metaclass__ = Stereo
-    # def __init__(self, a, b):
-    #     BaseOperation.__init__(self, None)
-    #     self &= Swap(a, b, 0)
-    #     self &= Swap(a, b, 1)
+generated(2)(StereoSwap)
 
 class Invert(OnePointOp):
     """Inverts the samples on a channel, ie, multiply by -1
@@ -127,10 +144,12 @@ class Invert(OnePointOp):
 
     def munge(self, stream):
         stream[self.slice] = map(lambda x: x * -1, stream[self.slice])
+generated(2, pick_channel)(Invert)
 
 class StereoInvert(Invert):
     """Inverts the sample on two channels."""
     __metaclass__ = Stereo
+generated(2, pick_channel)(StereoInvert)
 
 class Reverse(OnePointOp):
     """Reverses a section of audio on one channel.
@@ -147,10 +166,12 @@ class Reverse(OnePointOp):
     def munge(self, stream):
         s = self.slice
         stream[s] = list(reversed(stream[s]))
+generated(1, pick_channel)(Reverse)
 
 class StereoReverse(BaseOperation):
     """Reverses a section in both channels."""
     __metaclass__ = Stereo
+generated(1, pick_channel)(Reverse)
 
 class Dup(TwoPointOp):
     """Duplicate a source over a destination on a single channel.
@@ -168,10 +189,12 @@ class Dup(TwoPointOp):
         a = self.a
         b = self.b
         stream[b] = stream[a]
+generated(2, pick_channel)(Dup)
 
 class StereoDup(Dup):
     """Duplicate a source over a destination on both channels."""
     __metaclass__ = Stereo
+generated(2)(Dup)
 
 class Convolution(OnePointOp):
     """Perform a convolution on a single channel of the stream,
@@ -190,6 +213,7 @@ class Convolution(OnePointOp):
     def munge(self, stream):
         s = self.slice
         stream[s] = convolve(stream[s], self.kernel)
+generated(2, partial(get_item, kernels))(Convolution)
 
 class Rotate(OnePointOp):
     """Perform an FFT on a single channel, rotate all
@@ -218,6 +242,7 @@ class Rotate(OnePointOp):
             return complex(r * cos(angle), r * sin(angle))
         f = map(rotate, f)
         stream[s] = _clean(ifft(f))
+generated(1, get_angle, pick_channel)(Rotate)
 
 class Stutter(OnePointOp):
     """Take a slice 's', extract a fragment of that slice,
@@ -237,9 +262,10 @@ class Stutter(OnePointOp):
     def munge(self, stream):
         s = self.slice
         full = stream[s]
-        size = len(full) / self.stutters
-        cut = full[0:size] * self.stutters
+        size = int(round(len(full) / float(self.stutters)))
+        cut = list(full[0:size]) * self.stutters
         stream[s] = cut[0:len(full)]
+generated(1, get_cuts, pick_channel)(Stutter)
 
 class FrameSmear(OnePointOp):
     """Take a slice `s` and replace each frame
@@ -262,14 +288,7 @@ class FrameSmear(OnePointOp):
             count += 1
             sl[i] = total / count
         stream[self.slice] = sl
-
-kernels = {
-    "blur": [0.04 * (int(1.0/0.04))],
-    "sharpen": [-3, 7, -3],
-    "edge": [-1, 2, -1],
-    "edge1": [-1, -1, 4, -1, -1],
-    "neighborhood": [1, 1, -4, 1, 1]
-}
+generated(1, pick_channel)(FrameSmear)
 
 if __name__ == '__main__':
     def test_data():
