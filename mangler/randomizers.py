@@ -2,6 +2,7 @@
 
 import random
 from math import pi
+from collections import OrderedDict
 
 def get_slice(frame_rate, stream_size, ratio=1.0):
     block = int(frame_rate * ratio)
@@ -47,3 +48,60 @@ def generated(slices, *args, **kwargs):
             return cls(*s, **kw)
         cls.generate = classmethod(generate)
     return wrapper
+
+class Population(object):
+    """Build a weighted population that can
+    return random items based on that probability.
+
+    >>> p = Population(opts, Swap=0.5, Merge=0.5)
+    >>> p._get(0.45)
+    'Merge'
+    >>> p._get(0.55)
+    'Swap'
+    >>> p._object("Swap") is Swap
+    True
+    """
+    def __init__(self, options, **kwargs):
+        self._options = options
+        self.overrides = kwargs
+        self.prob_total = 1.0
+        self.probs = OrderedDict()
+        self.build_probs()
+
+    def build_probs(self):
+        allocated = 0
+        unused = map(lambda x: x.__name__, self._options)
+        prob = self.prob_total
+        for k,v in self.overrides.items():
+            allocated += v
+            self.probs[allocated] = k
+            unused.remove(k)
+        if allocated >= prob:
+            return
+
+        remaining = (prob - allocated) / float(len(unused))
+        for i in unused:
+            allocated += remaining
+            self.probs[allocated] = i
+
+    def _get(self, value):
+        r = value
+        for k in self.probs.keys():
+            if r < k:
+                return self.probs[k]
+        return self.probs.values()[-1]
+
+    def _object(self, key):
+        i = map(lambda x: x.__name__, self._options).index(key)
+        return self._options[i]
+
+    def get(self):
+        s = self._get(random.random())
+        return self._object(s)
+
+
+if __name__ == "__main__":
+    import doctest
+    from .operations import __all__ as opts
+    from .operations import Swap
+    doctest.testmod()
