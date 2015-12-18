@@ -16,6 +16,7 @@ True
 
 import random
 from numpy.fft import fft, ifft, fft2, ifft2
+import numpy as np
 from scipy.ndimage import convolve
 from math import atan2, pi, hypot, cos, sin
 from functools import partial
@@ -289,6 +290,29 @@ class FrameSmear(OnePointOp):
             sl[i] = total / count
         stream[self.slice] = sl
 generated(1, pick_channel)(FrameSmear)
+
+class Merge(TwoPointOp):
+    """Take slice `b` and add it to slice `a`, after applying
+    a ratio.
+
+    >>> s = Merge(slice(0,4), slice(4,8), 0.75)
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:4]
+    [3, 4, 6, 8]
+    """
+    def __init__(self, a, b, ratio=1.0, channel=0):
+        TwoPointOp.__init__(self, a, b, channel)
+        self.ratio = ratio
+
+    def munge(self, stream):
+        st = np.array(stream)
+        st[self.a] += np.array((st[self.b] * self.ratio), dtype=np.int16)
+        stream[self.a] = st[self.a]
+
+__all__ = [Swap, StereoSwap, Invert, StereoInvert,
+    Reverse, StereoReverse, Dup, StereoDup, Convolution,
+    Rotate, FrameSmear, Merge]
 
 if __name__ == '__main__':
     def test_data():
