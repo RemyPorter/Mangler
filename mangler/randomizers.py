@@ -60,6 +60,18 @@ class Population(object):
     'Swap'
     >>> p._object("Swap") is Swap
     True
+    >>> p._object("Invert") is Invert
+    True
+    >>> p2 = Population(opts)
+    >>> p2._get(0.45)
+    'Dup'
+    >>> p2._get(0.24)
+    'Invert'
+    >>> p2._get(0.92)
+    'Merge'
+    >>> s = p2._object(p2._get(0.24)).generate(1, 100)
+    >>> isinstance(s, Invert)
+    True
     """
     def __init__(self, options, **kwargs):
         self._options = options
@@ -103,5 +115,5 @@ class Population(object):
 if __name__ == "__main__":
     import doctest
     from .operations import __all__ as opts
-    from .operations import Swap
+    from .operations import Swap, Invert
     doctest.testmod()

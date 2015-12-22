@@ -12,6 +12,11 @@ randomized instance.
 >>> s = Swap.generate(1, 100)
 >>> isinstance(s.a, slice)
 True
+>>> data = test_data()
+>>> s(data)
+>>> for op in __all__:
+...   o = op.generate(1,100)
+...   o(data)
 """
 
 import random
@@ -29,15 +34,6 @@ kernels = {
     "edge1": [-1, -1, 4, -1, -1],
     "neighborhood": [1, 1, -4, 1, 1]
 }
-
-class Stereo(type):
-    def __init__(cls, name, bases, nmspc):
-        orig = cls.__init__
-        def innernit(self, *args):
-            orig(self, *args)
-            for b in bases:
-                self &= b(*args, channel=1)
-        cls.__init__ = innernit
 
 def _clean(channel):
     """Map a list of complex numbers to their real components."""
@@ -118,19 +114,6 @@ class Swap(TwoPointOp):
         stream[b] = s1
 generated(2, pick_channel)(Swap)
 
-class StereoSwap(Swap):
-    """This swaps stereo channels by using two Swaps.
-    >>> s = StereoSwap(slice(0,4), slice(4,8))
-    >>> data = test_data()
-    >>> s(data)
-    >>> data[0][0:9]
-    [4, 5, 6, 7, 0, 1, 2, 3, 8]
-    >>> data[1][0:9]
-    [4, 5, 6, 7, 0, 1, 2, 3, 8]
-    """
-    __metaclass__ = Stereo
-generated(2)(StereoSwap)
-
 class Invert(OnePointOp):
     """Inverts the samples on a channel, ie, multiply by -1
 
@@ -145,12 +128,7 @@ class Invert(OnePointOp):
 
     def munge(self, stream):
         stream[self.slice] = map(lambda x: x * -1, stream[self.slice])
-generated(2, pick_channel)(Invert)
-
-class StereoInvert(Invert):
-    """Inverts the sample on two channels."""
-    __metaclass__ = Stereo
-generated(2, pick_channel)(StereoInvert)
+generated(1, pick_channel)(Invert)
 
 class Reverse(OnePointOp):
     """Reverses a section of audio on one channel.
@@ -167,11 +145,6 @@ class Reverse(OnePointOp):
     def munge(self, stream):
         s = self.slice
         stream[s] = list(reversed(stream[s]))
-generated(1, pick_channel)(Reverse)
-
-class StereoReverse(BaseOperation):
-    """Reverses a section in both channels."""
-    __metaclass__ = Stereo
 generated(1, pick_channel)(Reverse)
 
 class Dup(TwoPointOp):
@@ -192,11 +165,6 @@ class Dup(TwoPointOp):
         stream[b] = stream[a]
 generated(2, pick_channel)(Dup)
 
-class StereoDup(Dup):
-    """Duplicate a source over a destination on both channels."""
-    __metaclass__ = Stereo
-generated(2)(Dup)
-
 class Convolution(OnePointOp):
     """Perform a convolution on a single channel of the stream,
     through the slice 's'.
@@ -214,7 +182,7 @@ class Convolution(OnePointOp):
     def munge(self, stream):
         s = self.slice
         stream[s] = convolve(stream[s], self.kernel)
-generated(2, partial(get_item, kernels))(Convolution)
+generated(1, partial(get_item, kernels))(Convolution)
 
 class Rotate(OnePointOp):
     """Perform an FFT on a single channel, rotate all
@@ -309,9 +277,10 @@ class Merge(TwoPointOp):
         st = np.array(stream)
         st[self.a] += np.array((st[self.b] * self.ratio), dtype=np.int16)
         stream[self.a] = st[self.a]
+generated(2, pick_channel)(Merge)
 
-__all__ = [Swap, StereoSwap, Invert, StereoInvert,
-    Reverse, StereoReverse, Dup, StereoDup, Convolution,
+__all__ = [Swap, Invert,
+    Reverse, Dup, Convolution,
     Rotate, FrameSmear, Merge]
 
 if __name__ == '__main__':
