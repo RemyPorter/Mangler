@@ -279,9 +279,61 @@ class Merge(TwoPointOp):
         stream[self.a] = st[self.a]
 generated(2, pick_channel)(Merge)
 
+class FlipStereo(OnePointOp):
+    """Flip the two stereo channels.
+    >>> s = FlipStereo(slice(0,4))
+    >>> data = test_data()
+    >>> data[1][0:4] = [10, 9, 8, 7]
+    >>> s(data)
+    >>> data[0][0:4]
+    [10, 9, 8, 7]
+    >>> data[1][0:4]
+    [0, 1, 2, 3]
+    """
+    def __init__(self, s, channel=None):
+        OnePointOp.__init__(self, s, None)
+
+    def munge(self, stream):
+        s = self.slice
+        orig = stream[0][s]
+        stream[0][s] = stream[1][s]
+        stream[1][s] = orig
+generated(1)(FlipStereo)
+
+class InterleaveStereo(OnePointOp):
+    """Swap stereo channels on every alternate sample.
+    >>> s = InterleaveStereo(slice(0,4))
+    >>> data = test_data()
+    >>> data[1][0:4] = [10, 9, 8, 7]
+    >>> s(data)
+    >>> data[0][0:4]
+    [10, 1, 8, 3]
+    >>> data[1][0:4]
+    [0, 9, 2, 7]
+    """
+    def __init__(self, s, channel=None):
+        OnePointOp.__init__(self, s, None)
+
+    def munge(self, stream):
+        s = self.slice
+        zipped = zip(stream[0][s], stream[1][s])
+        left = []
+        right = []
+        for i,z in enumerate(zipped):
+            if i % 2 == 0:
+                right.append(z[1])
+                left.append(z[0])
+            else:
+                right.append(z[0])
+                left.append(z[1])
+        stream[1][s] = left
+        stream[0][s] = right
+generated(1)(InterleaveStereo)
+
 __all__ = [Swap, Invert,
     Reverse, Dup, Convolution,
-    Rotate, FrameSmear, Merge, Stutter]
+    Rotate, FrameSmear, Merge, Stutter,
+    FlipStereo, InterleaveStereo]
 
 if __name__ == '__main__':
     def test_data():
