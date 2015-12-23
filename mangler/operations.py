@@ -279,9 +279,30 @@ class Merge(TwoPointOp):
         stream[self.a] = st[self.a]
 generated(2, pick_channel)(Merge)
 
+class Stutter(OnePointOp):
+    """Take a slice, and a subslice of size `n`, and then repeat
+    that subslice for the entire duration of the original slice.
+
+    >>> s = Stutter(slice(0,8), 0.25)
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:8]
+    [0, 1, 0, 1, 0, 1, 0, 1]
+    """
+    def __init__(self, s, ratio, channel=0):
+        OnePointOp.__init__(self, s, channel)
+        self.ratio = ratio
+
+    def munge(self, stream):
+        s = stream[self.slice]
+        cut = int(len(s) * self.ratio)
+        repeat = len(s) / cut
+        stut = list(s[0:cut]) * repeat
+        stream[self.slice] = stut[0:len(s)]
+
 __all__ = [Swap, Invert,
     Reverse, Dup, Convolution,
-    Rotate, FrameSmear, Merge]
+    Rotate, FrameSmear, Merge, Stutter]
 
 if __name__ == '__main__':
     def test_data():
