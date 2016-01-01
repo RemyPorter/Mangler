@@ -20,7 +20,7 @@ True
 """
 
 import random
-from numpy.fft import fft, ifft, fft2, ifft2
+from numpy.fft import fft, ifft, fft2, ifft2, rfft,irfft
 import numpy as np
 from scipy.ndimage import convolve
 from math import atan2, pi, hypot, cos, sin
@@ -330,10 +330,37 @@ class InterleaveStereo(OnePointOp):
         stream[0][s] = right
 generated(1)(InterleaveStereo)
 
+class Expand(OnePointOp):
+    """
+    Find the average frequency in the range, then examine
+    each sample and find its diffence from that frequency-
+    and double that difference.
+
+    >>> s = Expand(slice(0,4))
+    >>> data = test_data()
+    >>> s(data)
+    >>> data[0][0:4]
+    [0, 2, 3, 5]
+    """
+    def __init__(self, s, channel=0):
+        OnePointOp.__init__(self, s, channel)
+
+    def munge(self, stream):
+        s = self.slice
+        ft = rfft(stream[s])
+        assert(len(ft) > 0)
+        avg = reduce(lambda acc, elem: acc + elem, ft) / len(ft)
+        harmonics = np.arange(len(ft))
+        for i,m in enumerate(ft):
+            diff = m - avg
+            ft[i] += diff
+        stream[s] = _clean(irfft(ft))
+generated(1)(Expand)
+
 __all__ = [Swap, Invert,
     Reverse, Dup, Convolution,
     Rotate, FrameSmear, Merge, Stutter,
-    FlipStereo, InterleaveStereo]
+    FlipStereo, InterleaveStereo, Expand]
 
 if __name__ == '__main__':
     def test_data():
