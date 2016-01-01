@@ -23,6 +23,7 @@ def main():
     hpm = args.hpm
 
     stream, rate = load.read(inputfile)
+    stream = load.stereoify(stream)
     size = len(stream[0])
 
     hits = hpm * size / (rate*60)

@@ -42,3 +42,8 @@ def write(filename, channels, rate):
     combined = np.array(channels).T
     w.writeframes(combined.tobytes())
     w.close()
+
+def stereoify(stream):
+    if len(stream) > 1:
+        return stream
+    return [stream[0], stream[0]]
