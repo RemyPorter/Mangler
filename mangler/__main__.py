@@ -13,6 +13,8 @@ def build_arguments():
         default="output.wav")
     parser.add_argument("--hpm", metavar="hpm", type=int, nargs="?",
         help="how many hits/cuts to make per minute.", default=180)
+    parser.add_argument("--weightfile", metavar="weightfile", type=str,
+        nargs="?", default=None)
     return parser
 
 def main():
@@ -27,7 +29,11 @@ def main():
     size = len(stream[0])
 
     hits = hpm * size / (rate*60)
-    p = Population(o.__all__)
+    p = None
+    if args.weightfile:
+        p = Population(o.__all__, **load.loadweights(args.weightfile))
+    else:
+        p = Population(o.__all__)
     for i in range(hits):
         op = p.get().generate(rate, size)
         op(stream)

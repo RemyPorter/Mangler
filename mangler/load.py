@@ -2,6 +2,7 @@ import os
 import numpy as np
 from pydub import AudioSegment
 import wave
+import json
 
 def _read_pydub(filename, limit=None):
     """Read a file using pydub"""
@@ -47,3 +48,8 @@ def stereoify(stream):
     if len(stream) > 1:
         return stream
     return [stream[0], stream[0]]
+
+def loadweights(path):
+    with open(path) as f:
+        weights = json.load(f)
+    return weights
